@@ -18,10 +18,16 @@
 
 //DUTIL_USE_NAMESPACE
 
+#include "utils/screenutils.h"
+#include "utils/tempfile.h"
+
 namespace {
 const int RECORD_MIN_SIZE = 10;
 const int SPACING = 5;
 const int TOOLBAR_Y_SPACING = 8;
+const int CURSOR_WIDTH = 8;
+const int CURSOR_HEIGHT = 18;
+const int INDICATOR_WIDTH =  59;
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -34,21 +40,16 @@ MainWindow::~MainWindow()
 {
 }
 
-void MainWindow::initUI() {
+void MainWindow::initOriginUI() {
     this->setFocus();
     setMouseTracking(true);
-    m_configSettings =  ConfigSettings::instance();
-    m_hotZoneInterface->asyncCall("EnableZoneDetected", false);
 
     QPoint curPos = this->cursor().pos();
-    m_screenNum = qApp->desktop()->screenNumber(curPos);
-    QList<QScreen*> screenList = qApp->screens();
-    if (m_screenNum != 0 && m_screenNum < screenList.length()) {
-        m_backgroundRect = screenList[m_screenNum]->geometry();
-    } else {
-        m_backgroundRect =  qApp->primaryScreen()->geometry();
-    }
 
+    ScreenUtils::instance(curPos);
+
+    m_screenNum =  ScreenUtils::instance(curPos)->getScreenNum();
+    m_backgroundRect = ScreenUtils::instance(curPos)->backgroundRect();
     this->move(m_backgroundRect.x(), m_backgroundRect.y());
     this->setFixedSize(m_backgroundRect.size());
 
@@ -65,24 +66,11 @@ void MainWindow::initUI() {
     m_rootWindowRect.width = m_backgroundRect.width();
     m_rootWindowRect.height = m_backgroundRect.height();
 
-    if (m_screenNum == 0) {
-        QList<xcb_window_t> windows = m_windowManager->getWindows();
-        for (int i = 0; i < windows.length(); i++) {
-            m_windowRects.append(m_windowManager->adjustRectInScreenArea(
-                                     m_windowManager->getWindowRect(windows[i])));
-            qDebug() << "m_windowRects:" << m_windowRects[i].width << m_windowRects.length();
-            m_windowNames.append(m_windowManager->getWindowClass(windows[i]));
-        }
-    }
-
     m_sizeTips = new TopTips(this);
     m_sizeTips->hide();
-    m_toolBar = new ToolBar(this);
-    m_toolBar->hide();
+
     m_zoomIndicator = new ZoomIndicator(this);
     m_zoomIndicator->hide();
-
-    m_menuController = new MenuController;
 
     m_isFirstDrag = false;
     m_isFirstMove = false;
@@ -106,6 +94,23 @@ void MainWindow::initUI() {
     m_selectAreaName = "";
 
     m_isShapesWidgetExist = false;
+}
+
+void MainWindow::initSecondUI() {
+    if (m_screenNum == 0) {
+        QList<xcb_window_t> windows = m_windowManager->getWindows();
+        for (int i = 0; i < windows.length(); i++) {
+            m_windowRects.append(m_windowManager->adjustRectInScreenArea(
+                                     m_windowManager->getWindowRect(windows[i])));
+            qDebug() << "m_windowRects:" << m_windowRects[i].width << m_windowRects.length();
+            m_windowNames.append(m_windowManager->getWindowClass(windows[i]));
+        }
+    }
+    m_configSettings =  ConfigSettings::instance();
+    m_toolBar = new ToolBar(this);
+    m_toolBar->hide();
+    m_menuController = new MenuController(this);
+
     connect(m_toolBar, &ToolBar::buttonChecked, this,  [=](QString shape){
         if (m_isShapesWidgetExist && shape != "color") {
             m_shapesWidget->setCurrentShape(shape);
@@ -131,6 +136,7 @@ void MainWindow::initDBusInterface() {
     m_notifyDBInterface = new DBusNotify(this);
     m_notifyDBInterface->CloseNotification(0);
     m_hotZoneInterface = new DBusZone(this);
+    m_hotZoneInterface->asyncCall("EnableZoneDetected", false);
     m_interfaceExist = true;
 }
 
@@ -432,14 +438,13 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *ev) {
 
             // Record select area name with window name if just click (no drag).
             if (!m_isFirstDrag) {
-                QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(ev);
                 for (int i = 0; i < m_windowRects.length(); i++) {
                     int wx = m_windowRects[i].x;
                     int wy = m_windowRects[i].y;
                     int ww = m_windowRects[i].width;
                     int wh = m_windowRects[i].height;
-                    int ex = mouseEvent->x();
-                    int ey = mouseEvent->y();
+                    int ex = ev->x();
+                    int ey = ev->y();
                     if (ex > wx && ex < wx + ww && ey > wy && ey < wy + wh) {
                         m_selectAreaName = m_windowNames[i];
                         break;
@@ -473,6 +478,7 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *ev) {
     if (needRepaint) {
         update();
     }
+
     QLabel::mouseReleaseEvent(ev);
 }
 
@@ -487,7 +493,7 @@ void MainWindow::mouseMoveEvent(QMouseEvent *ev) {
     if (!m_isShapesWidgetExist) {
         if (m_recordWidth > 0 && m_recordHeight >0 && !m_needSaveScreenshot && this->isVisible()) {
             m_sizeTips->updateTips(QPoint(m_recordX, m_recordY),
-                                   QString("%1X%2").arg(m_recordWidth).arg(m_recordHeight));
+                                                         QString("%1X%2").arg(m_recordWidth).arg(m_recordHeight));
 
             if (m_toolBar->isVisible()) {
                 updateToolBarPos();
@@ -495,84 +501,76 @@ void MainWindow::mouseMoveEvent(QMouseEvent *ev) {
             }
         }
 
-        if ( !m_isFirstMove) {
-            m_isFirstMove = true;
-            needRepaint = true;
-        } else {
+        if (m_isFirstMove) {
             if (!m_toolBar->isVisible() && !m_isFirstReleaseButton) {
                 QPoint curPos = this->cursor().pos();
-                QPoint tmpPoint;
-                tmpPoint = QPoint(std::min(curPos.x() + 5 - m_backgroundRect.x(), curPos.x() + 5),
-                                  curPos.y() + 5);
-
-                if (curPos.x() >= m_backgroundRect.x() + m_backgroundRect.width() - m_zoomIndicator->width()) {
-                    tmpPoint.setX(std::min(m_backgroundRect.width() - m_zoomIndicator->width() - 5, curPos.x() + 5));
+                QPoint tmpPos;
+                if (curPos.x() + INDICATOR_WIDTH + CURSOR_WIDTH > m_backgroundRect.x()
+                        + m_backgroundRect.width()) {
+                      tmpPos.setX(curPos.x() - INDICATOR_WIDTH);
+                } else {
+                    tmpPos.setX(curPos.x() + CURSOR_WIDTH);
                 }
 
-                if (curPos.y() >= m_backgroundRect.y() + m_backgroundRect.height() - m_zoomIndicator->height()) {
-                    tmpPoint.setY(curPos.y()  - m_zoomIndicator->height() - 5);
+                if (curPos.y() + INDICATOR_WIDTH > m_backgroundRect.y() + m_backgroundRect.height()) {
+                    tmpPos.setY(curPos.y() - INDICATOR_WIDTH);
+                } else {
+                    tmpPos.setY(curPos.y() + CURSOR_HEIGHT);
                 }
 
-                m_zoomIndicator->showMagnifier(tmpPoint);
+                m_zoomIndicator->showMagnifier(tmpPos);
             }
+        } else {
+            m_isFirstMove = true;
+            needRepaint = true;
         }
-
-        if (m_isPressButton && m_isFirstPressButton) {
-            if (!m_isFirstDrag) {
-                m_isFirstDrag = true;
-
-                m_selectAreaName = tr("select-area");
-            }
-        }
-
-        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(ev);
 
         if (m_isFirstPressButton) {
             if (!m_isFirstReleaseButton) {
                 if (m_isPressButton && !m_isReleaseButton) {
-                    m_recordX = std::min(m_dragStartX, mouseEvent->x());
-                    m_recordY = std::min(m_dragStartY, mouseEvent->y());
-                    m_recordWidth = std::abs(m_dragStartX - mouseEvent->x());
-                    m_recordHeight = std::abs(m_dragStartY - mouseEvent->y());
+                    m_recordX = std::min(m_dragStartX, ev->x());
+                    m_recordY = std::min(m_dragStartY, ev->y());
+                    m_recordWidth = std::abs(m_dragStartX - ev->x());
+                    m_recordHeight = std::abs(m_dragStartY - ev->y());
 
                     needRepaint = true;
                 }
             } else if (m_isPressButton) {
                 if (m_mouseStatus != ShotMouseStatus::Wait && m_dragRecordX >= 0
-                        && m_dragRecordY >= 0) {
+                && m_dragRecordY >= 0) {
                     if (m_dragAction == ResizeDirection::Moving && m_moving) {
-                        m_recordX = std::max(std::min(m_dragRecordX +
-                                                      mouseEvent->x() - m_dragStartX, m_rootWindowRect.width
-                                                      - m_recordWidth), 1);
-                        m_recordY = std::max(std::min(m_dragRecordY + mouseEvent->y()
-                                                      - m_dragStartY, m_rootWindowRect.height - m_recordHeight), 1);
+                        m_recordX = std::max(std::min(m_dragRecordX + ev->x() - m_dragStartX,
+                                                                                  m_rootWindowRect.width - m_recordWidth), 1);
+                        m_recordY = std::max(std::min(m_dragRecordY + ev->y() - m_dragStartY,
+                                                                                  m_rootWindowRect.height - m_recordHeight), 1);
+
                     } else if (m_dragAction == ResizeDirection::TopLeft) {
-                        resizeDirection(ResizeDirection::Top, mouseEvent);
-                        resizeDirection(ResizeDirection::Left, mouseEvent);
+                        resizeDirection(ResizeDirection::Top, ev);
+                        resizeDirection(ResizeDirection::Left, ev);
                     } else if (m_dragAction == ResizeDirection::TopRight) {
-                        resizeDirection(ResizeDirection::Top, mouseEvent);
-                        resizeDirection(ResizeDirection::Right, mouseEvent);
+                        resizeDirection(ResizeDirection::Top, ev);
+                        resizeDirection(ResizeDirection::Right, ev);
                     } else if (m_dragAction == ResizeDirection::BottomLeft) {
-                        resizeDirection(ResizeDirection::Bottom, mouseEvent);
-                        resizeDirection(ResizeDirection::Left, mouseEvent);
+                        resizeDirection(ResizeDirection::Bottom, ev);
+                        resizeDirection(ResizeDirection::Left, ev);
                     } else if (m_dragAction == ResizeDirection::BottomRight) {
-                        resizeDirection(ResizeDirection::Bottom, mouseEvent);
-                        resizeDirection(ResizeDirection::Right, mouseEvent);
+                        resizeDirection(ResizeDirection::Bottom, ev);
+                        resizeDirection(ResizeDirection::Right, ev);
                     } else if (m_dragAction == ResizeDirection::Top) {
-                        resizeDirection(ResizeDirection::Top, mouseEvent);
+                        resizeDirection(ResizeDirection::Top, ev);
                     } else if (m_dragAction == ResizeDirection::Bottom) {
-                        resizeDirection(ResizeDirection::Bottom, mouseEvent);
+                        resizeDirection(ResizeDirection::Bottom, ev);
                     } else if (m_dragAction == ResizeDirection::Left) {
-                        resizeDirection(ResizeDirection::Left, mouseEvent);
+                        resizeDirection(ResizeDirection::Left, ev);
                     } else if (m_dragAction == ResizeDirection::Right) {
-                        resizeDirection(ResizeDirection::Right, mouseEvent);
+                        resizeDirection(ResizeDirection::Right, ev);
                     }
+
                     needRepaint = true;
                 }
             }
 
             updateCursor(ev);
-
             int mousePosition =  getDirection(ev);
             bool drawPoint = mousePosition != ResizeDirection::Moving;
             if (drawPoint != m_needDrawSelectedPoint) {
@@ -586,8 +584,8 @@ void MainWindow::mouseMoveEvent(QMouseEvent *ev) {
                     int wy = m_windowRects[i].y;
                     int ww = m_windowRects[i].width;
                     int wh = m_windowRects[i].height;
-                    int ex = mouseEvent->x();
-                    int ey = mouseEvent->y();
+                    int ex = ev->x();
+                    int ey = ev->y();
                     if (ex > wx && ex < wx + ww && ey > wy && ey < wy + wh) {
                         m_recordX = wx;
                         m_recordY = wy;
@@ -595,7 +593,6 @@ void MainWindow::mouseMoveEvent(QMouseEvent *ev) {
                         m_recordHeight = wh;
 
                         needRepaint = true;
-
                         break;
                     }
                 }
@@ -605,6 +602,14 @@ void MainWindow::mouseMoveEvent(QMouseEvent *ev) {
                 m_recordWidth = m_rootWindowRect.width;
                 m_recordHeight = m_rootWindowRect.height;
                 needRepaint = true;
+            }
+        }
+
+        if (m_isPressButton && m_isFirstPressButton) {
+            if (!m_isFirstDrag) {
+                m_isFirstDrag = true;
+
+                m_selectAreaName = tr("select-area");
             }
         }
     }
@@ -864,13 +869,8 @@ void MainWindow::fullScreenshot() {
     m_hotZoneInterface->asyncCall("EnableZoneDetected", false);
 
     QPoint curPos = this->cursor().pos();
-    m_screenNum = qApp->desktop()->screenNumber(curPos);
-    QList<QScreen*> screenList = qApp->screens();
-    if (m_screenNum != 0 && m_screenNum < screenList.length()) {
-        m_backgroundRect = screenList[m_screenNum]->geometry();
-    } else {
-        m_backgroundRect =  qApp->primaryScreen()->geometry();
-    }
+    m_screenNum = ScreenUtils::instance(curPos)->getScreenNum();
+    m_backgroundRect = ScreenUtils::instance(curPos)->backgroundRect();
 
     this->move(m_backgroundRect.x(), m_backgroundRect.y());
     this->setFixedSize(m_backgroundRect.size());
@@ -882,8 +882,8 @@ void MainWindow::fullScreenshot() {
 
     emit this->hideScreenshotUI();
 //    DDesktopServices::playSystemSoundEffect(DDesktopServices::SSE_Screenshot);
-    using namespace utils;
-    QPixmap screenShotPix(TMP_FULLSCREEN_FILE);
+//    using namespace utils;
+    QPixmap screenShotPix(TempFile::instance()->getFullscreenFileName());
     saveAction(screenShotPix);
     sendNotify(m_saveIndex, m_saveFileName);
 }
@@ -893,6 +893,7 @@ void MainWindow::savePath(const QString &path) {
         exitApp();
     }
 
+    qDebug() << "path exist!";
     startScreenshot();
     m_toolBar->specificedSavePath();
     m_specificedPath = path;
@@ -910,7 +911,8 @@ void MainWindow::saveSpecificedPath(QString path) {
     QString savePath;
     QString baseName = QFileInfo(path).baseName();
     QString suffix = QFileInfo(path).completeSuffix();
-    if (!baseName.isEmpty()) {
+
+    if (!QFileInfo(path).isDir() && !baseName.isEmpty()) {
         if (isValidFormat(suffix)) {
             savePath = path;
         } else if (suffix.isEmpty()) {
@@ -919,27 +921,34 @@ void MainWindow::saveSpecificedPath(QString path) {
             qWarning() << "Invalid image format! Screenshot will quit, suffix:" << suffix;
             exitApp();
         }
+        qDebug() << "process savepath1:" << savePath;
     } else {
+        if (QFileInfo(path).isDir() && !path.endsWith("/")) {
+            path = path + "/";
+        }
+        qDebug() << "path isEmpty!";
+
         QDateTime currentDate;
         QString currentTime =  currentDate.currentDateTime().
                 toString("yyyyMMddHHmmss");
         if (m_selectAreaName.isEmpty()) {
-            savePath = path + QString("%1_%2").arg(tr("DeepinScreenshot")).arg(currentTime);
+            savePath = path + QString("%1_%2.png").arg(tr("DeepinScreenshot")).arg(currentTime);
         } else {
-            savePath = path + QString("%1_%2_%3").arg(tr("DeepinScreenshot")).arg(
+            savePath = path + QString("%1_%2_%3.png").arg(tr("DeepinScreenshot")).arg(
                                                                                        m_selectAreaName).arg(currentTime);
         }
+        qDebug() << "process savepath2: " << savePath;
     }
 
     m_hotZoneInterface->asyncCall("EnableZoneDetected",  true);
-    using namespace utils;
+//    using namespace utils;
     m_toolBar->setVisible(false);
     m_sizeTips->setVisible(false);
 
     shotCurrentImg();
 //    DDesktopServices::playSystemSoundEffect(DDesktopServices::SSE_Screenshot);
 
-    QPixmap screenShotPix(TMP_FILE);
+    QPixmap screenShotPix(TempFile::instance()->getTmpFileName());
     screenShotPix.save(savePath);
     QStringList actions;
     actions << "_open" << tr("View");
@@ -992,14 +1001,19 @@ void MainWindow::noNotify() {
     m_hotZoneInterface = new DBusZone(this);
     m_interfaceExist = true;
     m_noNotify = true;
-    initUI();
-    initShortcut();
+
+    initOriginUI();
     this->show();
+    initSecondUI();
+    initShortcut();
 }
 
 void MainWindow::topWindow() {
+    initOriginUI();
+    this->show();
+    initSecondUI();
     initDBusInterface();
-    initUI();
+
     if (m_screenNum == 0) {
         QList<xcb_window_t> windows = m_windowManager->getWindows();
         for (int i = 0; i < windows.length(); i++) {
@@ -1019,9 +1033,10 @@ void MainWindow::topWindow() {
 
     this->hide();
     emit this->hideScreenshotUI();
-    using namespace utils;
-    QPixmap screenShotPix = QPixmap(TMP_FULLSCREEN_FILE).copy(m_recordX, m_recordY,
-                                                              m_recordWidth, m_recordHeight);
+//    using namespace utils;
+    QPixmap screenShotPix = QPixmap(TempFile::instance()->getFullscreenFileName()).copy(
+                m_recordX, m_recordY, m_recordWidth, m_recordHeight);
+
     m_needSaveScreenshot = true;
 //    DDesktopServices::playSystemSoundEffect(DDesktopServices::SSE_Screenshot);
     saveAction(screenShotPix);
@@ -1041,36 +1056,38 @@ void MainWindow::expressSaveScreenshot() {
 
 void MainWindow::startScreenshot() {
     m_mouseStatus = ShotMouseStatus::Shoting;
-    repaint();
     qApp->setOverrideCursor(setCursorShape("start"));
-    initDBusInterface();
-    initUI();
-    initShortcut();
+
+    initOriginUI();
     this->show();
+    initSecondUI();
+
+    initDBusInterface();
+    initShortcut();
 }
 
 void MainWindow::initBackground() {
-    QList<QScreen*> screenList = qApp->screens();
-    QPixmap tmpImg =  screenList[m_screenNum]->grabWindow(
-                qApp->desktop()->screen(m_screenNum)->winId(),
+    QPoint curPos = this->cursor().pos();
+    QPixmap tmpImg =  ScreenUtils::instance(curPos)->primaryScreen()->grabWindow(
+                ScreenUtils::instance(curPos)->rootWindowId(),
                 m_backgroundRect.x(), m_backgroundRect.y(),
                 m_backgroundRect.width(), m_backgroundRect.height());
 
-    using namespace utils;
-    tmpImg.save(TMP_FULLSCREEN_FILE, "png");
+    //    using namespace utils;
+    tmpImg.save(TempFile::instance()->getFullscreenFileName(), "png");
     this->setStyleSheet(QString("MainWindow{ border-image: url(%1); }"
-                                ).arg(TMP_FULLSCREEN_FILE));
+                                ).arg(TempFile::instance()->getFullscreenFileName()));
 }
 
 void MainWindow::shotFullScreen() {
-    QList<QScreen*> screenList = qApp->screens();
-    QPixmap tmpImg =  screenList[m_screenNum]->grabWindow(
-                qApp->desktop()->screen(m_screenNum)->winId(),
+    QPoint curPos = this->cursor().pos();
+    QPixmap tmpImg =  ScreenUtils::instance(curPos)->primaryScreen()->grabWindow(
+                ScreenUtils::instance(curPos)->rootWindowId(),
                 m_backgroundRect.x(), m_backgroundRect.y(),
                 m_backgroundRect.width(), m_backgroundRect.height());
 
-    using namespace utils;
-    tmpImg.save(TMP_FULLSCREEN_FILE, "png");
+    //    using namespace utils;
+    tmpImg.save(TempFile::instance()->getFullscreenFileName(), "png");
 }
 
 void MainWindow::shotCurrentImg() {
@@ -1086,7 +1103,7 @@ void MainWindow::shotCurrentImg() {
     eventloop1.exec();
 
     qDebug() << "shotCurrentImg shotFullScreen";
-    using namespace utils;
+//    using namespace utils;
     shotFullScreen();
     if (m_isShapesWidgetExist) {
         m_shapesWidget->hide();
@@ -1095,9 +1112,9 @@ void MainWindow::shotCurrentImg() {
     this->hide();
     emit hideScreenshotUI();
 
-    QPixmap tmpImg(TMP_FULLSCREEN_FILE);
+    QPixmap tmpImg(TempFile::instance()->getFullscreenFileName());
     tmpImg = tmpImg.copy(QRect(m_recordX, m_recordY, m_recordWidth, m_recordHeight));
-    tmpImg.save(TMP_FILE, "png");
+    tmpImg.save(TempFile::instance()->getTmpFileName(), "png");
 }
 
 void MainWindow::shotImgWidthEffect() {
@@ -1111,15 +1128,15 @@ void MainWindow::shotImgWidthEffect() {
 //    eventloop.exec();
 
     qDebug() << m_toolBar->isVisible() << m_sizeTips->isVisible();
-    QList<QScreen*> screenList = qApp->screens();
-    QPixmap tmpImg =  screenList[m_screenNum]->grabWindow(
-                                         qApp->desktop()->screen(m_screenNum)->winId(),
+    QPoint curPos = this->cursor().pos();
+    QPixmap tmpImg =  ScreenUtils::instance(curPos)->primaryScreen()->grabWindow(
+                                         ScreenUtils::instance(curPos)->rootWindowId() ,
                                          m_shapesWidget->x(), m_shapesWidget->y(),
                                          m_shapesWidget->width(), m_shapesWidget->height());
     qDebug() << tmpImg.isNull() << tmpImg.size();
 
-    using namespace utils;
-    tmpImg.save(TMP_FILE, "png");
+//    using namespace utils;
+    tmpImg.save(TempFile::instance()->getTmpFileName(), "png");
     m_drawNothing = false;
     update();
 }
@@ -1137,15 +1154,15 @@ void MainWindow::saveScreenshot() {
 
     shotCurrentImg();
 
-    using namespace utils;
-    saveAction(utils::TMP_FILE);
+//    using namespace utils;
+    saveAction(TempFile::instance()->getTmpFileName());
     sendNotify(m_saveIndex, m_saveFileName);
 }
 
 void MainWindow::saveAction(QPixmap pix) {
     emit releaseEvent();
 
-    using namespace utils;
+//    using namespace utils;
     QPixmap screenShotPix = pix;
     QDateTime currentDate;
     QString currentTime =  currentDate.currentDateTime().
@@ -1187,21 +1204,27 @@ void MainWindow::saveAction(QPixmap pix) {
         QString  lastFileName;
         if (m_selectAreaName.isEmpty()) {
             lastFileName = QString("%1/%2_%3.png").arg(QStandardPaths::writableLocation(
-                                                           QStandardPaths::PicturesLocation)).arg(tr("DeepinScreenshot")).arg(currentTime);
+                                        QStandardPaths::PicturesLocation)).arg(tr("DeepinScreenshot")).arg(currentTime);
         } else {
             lastFileName = QString("%1/%2_%3_%4.png").arg(QStandardPaths::writableLocation(
-                                                              QStandardPaths::PicturesLocation)).arg(tr("DeepinScreenshot")).arg(m_selectAreaName).arg(currentTime);
+                                         QStandardPaths::PicturesLocation)).arg(tr("DeepinScreenshot")
+                                                                                                     ).arg(m_selectAreaName).arg(currentTime);
         }
 
         m_saveFileName =  fileDialog.getSaveFileName(this, "Save",  lastFileName,
                                                      tr("PNG (*.png);;JPEG (*.jpg *.jpeg);; BMP (*.bmp);; PGM (*.pgm);;"
                                                         "XBM (*.xbm);;XPM(*.xpm);;"));
-        if (m_saveFileName.isEmpty()) {
+
+
+        if (QFileInfo(m_saveFileName).isDir()) {
+            qDebug() << "empty fileName";
             exitApp();
         }
 
         QString fileSuffix = QFileInfo(m_saveFileName).completeSuffix();
-        if ( !isValidFormat(fileSuffix)) {
+        if (fileSuffix.isEmpty()) {
+                    m_saveFileName = m_saveFileName + ".png";
+        } else if ( !isValidFormat(fileSuffix)) {
             qWarning() << "The fileName has invalid suffix!" << fileSuffix << m_saveFileName;
             exitApp();
         }
@@ -1317,9 +1340,9 @@ void MainWindow::sendNotify(int saveIndex, QString saveFilePath) {
 void MainWindow::reloadImage(QString effect) {
     //**save tmp image file
     shotImgWidthEffect();
-    using namespace utils;
+//    using namespace utils;
     const int radius = 10;
-    QPixmap tmpImg(TMP_FILE);
+    QPixmap tmpImg(TempFile::instance()->getTmpFileName());
     int imgWidth = tmpImg.width();
     int imgHeight = tmpImg.height();
     if (effect == "blur") {
@@ -1328,14 +1351,14 @@ void MainWindow::reloadImage(QString effect) {
                                    Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
             tmpImg = tmpImg.scaled(imgWidth, imgHeight, Qt::IgnoreAspectRatio,
                                    Qt::SmoothTransformation);
-            tmpImg.save(TMP_BLUR_FILE, "png");
+            tmpImg.save(TempFile::instance()->getBlurFileName(), "png");
         }
     } else {
         if (!tmpImg.isNull()) {
             tmpImg = tmpImg.scaled(imgWidth/radius, imgHeight/radius,
                                    Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
             tmpImg = tmpImg.scaled(imgWidth, imgHeight);
-            tmpImg.save(TMP_MOSA_FILE, "png");
+            tmpImg.save(TempFile::instance()->getMosaicFileName(), "png");
         }
     }
 }
@@ -1357,7 +1380,7 @@ void MainWindow::onViewShortcut() {
 }
 
 void MainWindow::onHelp() {
-    using namespace utils;
+//    using namespace utils;
     if (m_manualPro.isNull()) {
         const QString pro = "dman";
         const QStringList args("deepin-screenshot");

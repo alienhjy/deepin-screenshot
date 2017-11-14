@@ -1,37 +1,88 @@
+/*
+ * Maintainer: Peng Hui<penghui@deepin.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "baseutils.h"
 
 #include <QPixmap>
 #include <QProcess>
 #include <QLayoutItem>
 #include <QFile>
+#include <QApplication>
 #include <QDebug>
+#include <QIcon>
+
+const QSize START_SIZE = QSize(15, 15);
+const QSize RECT_SIZE = QSize(22, 26);
+const QSize ARROW_SIZE = QSize(24, 24);
+const QSize TEXT_SIZE = QSize(11, 23);
+const QSize COLORPEN_SIZE = QSize(25, 25);
 
 QCursor setCursorShape(QString cursorName, int colorIndex) {
     QCursor customShape = QCursor();
+    qreal ration = qApp->devicePixelRatio();
+
     if (cursorName == "start") {
-        customShape = QCursor(QPixmap(
-                      ":/image/mouse_style/shape/start_mouse.png"), 8, 8);
+        QPixmap startPix;
+        if (ration <= 1)
+        {
+            startPix = QIcon(":/image/mouse_style/shape/start_mouse.svg").pixmap(START_SIZE);
+            customShape = QCursor(startPix, 8, 8);
+        } else
+        {
+            startPix = QIcon(":/image/mouse_style/shape/start_mouse@2x.svg").pixmap(START_SIZE);
+            customShape = QCursor(startPix, int(8*ration), int(8*ration));
+        }
+
     } else if (cursorName == "rotate") {
-        customShape = QCursor(QPixmap(
-                      ":/image/mouse_style/shape/rotate_mouse.png"), 5, 5);
+        QPixmap rotateCursor  = QIcon(":/image/mouse_style/shape/rotate_mouse.svg").pixmap(ARROW_SIZE);
+        rotateCursor.setDevicePixelRatio(ration);
+
+        customShape = QCursor(rotateCursor, int(10*ration), int(10*ration));
     } else if (cursorName == "rectangle") {
-        customShape = QCursor(QPixmap(
-                      ":/image/mouse_style/shape/rect_mouse.png"), 0, 4);
+        QPixmap rectCursor  = QIcon(":/image/mouse_style/shape/rect_mouse.svg").pixmap(RECT_SIZE);
+        rectCursor.setDevicePixelRatio(ration);
+
+        customShape = QCursor(rectCursor, 0, int(1*ration));
     } else if (cursorName == "oval") {
-        customShape = QCursor(QPixmap(
-                      ":/image/mouse_style/shape/ellipse_mouse.png"), 0, 4);
+        QPixmap ovalCursor  = QIcon(":/image/mouse_style/shape/ellipse_mouse.svg").pixmap(RECT_SIZE);
+        ovalCursor.setDevicePixelRatio(ration);
+
+        customShape = QCursor(ovalCursor, 0, int(1*ration));
     } else if (cursorName == "arrow") {
-        customShape = QCursor(QPixmap(
-                      ":/image/mouse_style/shape/arrow_mouse.png"), 5, 5);
+        QPixmap arrowCursor  = QIcon(":/image/mouse_style/shape/arrow_mouse.svg").pixmap(ARROW_SIZE);
+        arrowCursor.setDevicePixelRatio(ration);
+
+        customShape = QCursor(arrowCursor, int(5*ration), int(5*ration));
     } else if (cursorName == "text") {
-        customShape = QCursor(QPixmap(
-                      ":/image/mouse_style/shape/text_mouse.png"), 5, 5);
+        QPixmap textCursor  = QIcon(":/image/mouse_style/shape/text_mouse.svg").pixmap(TEXT_SIZE);
+        textCursor.setDevicePixelRatio(ration);
+
+        customShape = QCursor(textCursor, int(5*ration), int(5*ration));
     } else if  (cursorName == "line") {
-        customShape = QCursor(QPixmap(QString(
-                   ":/image/mouse_style/color_pen/color%1.png").arg(colorIndex)), 0, 25);
+        QPixmap colorPic = QIcon(QString(":/image/mouse_style/"
+            "color_pen/color%1.svg").arg(colorIndex)).pixmap(COLORPEN_SIZE);
+        colorPic.setDevicePixelRatio(ration);
+
+        customShape = QCursor(colorPic,  int(5*ration), int(22*ration));
     } else if (cursorName == "straightLine") {
-        customShape = QCursor(QPixmap(QString(
-                    ":/image/mouse_style/shape/line_mouse.png")), 2, 9);
+        QPixmap lineCursor  = QIcon(":/image/mouse_style/shape/line_mouse.svg").pixmap(ARROW_SIZE);
+        lineCursor.setDevicePixelRatio(ration);
+
+        customShape = QCursor(lineCursor, int(2*ration), int(9*ration));
     }
 
     return customShape;
@@ -43,7 +94,8 @@ int stringWidth(const QFont &f, const QString &str)
     return fm.boundingRect(str).width();
 }
 
-QString getFileContent(const QString &file) {
+QString getFileContent(const QString &file)
+{
     QFile f(file);
     QString fileContent = "";
     if (f.open(QFile::ReadOnly))
@@ -54,7 +106,8 @@ QString getFileContent(const QString &file) {
     return fileContent;
 }
 
-QColor colorIndexOf(int index) {
+QColor colorIndexOf(int index)
+{
     switch(index) {
     case 0: { return QColor("#ffd903");}
     case 1: { return QColor("#ff5e1a");}
@@ -78,7 +131,8 @@ QColor colorIndexOf(int index) {
     return QColor("#ffd903");
 }
 
-int colorIndex(QColor color) {
+int colorIndex(QColor color)
+{
     QList<QColor> colorList;
     colorList.append(QColor("#ffd903"));
     colorList.append(QColor("#ff5e1a"));
@@ -122,6 +176,6 @@ bool          isCommandExist(QString command) {
     }
 }
 
-void   paintSelectedPoint(QPainter &painter, QPoint pos, QPixmap pointImg) {
+void   paintSelectedPoint(QPainter &painter, QPointF pos, QPixmap pointImg) {
     painter.drawPixmap(pos, pointImg);
 }

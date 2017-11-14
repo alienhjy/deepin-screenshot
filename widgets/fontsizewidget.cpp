@@ -1,3 +1,22 @@
+/*
+ * Copyright (C) 2017 ~ 2017 Deepin Technology Co., Ltd.
+ *
+ * Maintainer: Peng Hui<penghui@deepin.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "fontsizewidget.h"
 
 #include <QHBoxLayout>
@@ -10,18 +29,21 @@ const QSize BUTTON_SIZE = QSize(20, 16);
 const QSize LINE_EDIT_SIZE = QSize(43, 16);
 
 Seperator::Seperator(QWidget *parent)
-    : QLabel(parent) {
+    : QLabel(parent)
+{
     setFixedSize(1, 16);
 }
 
 Seperator::~Seperator(){}
 
 FontSizeWidget::FontSizeWidget(QWidget *parent)
-    : QLabel(parent) {
+    : QLabel(parent)
+{
     initWidget();
 }
 
-void FontSizeWidget::initWidget() {
+void FontSizeWidget::initWidget()
+{
     setObjectName("FontSizeWidget");
     setStyleSheet(getFileContent(":/resources/qss/fontsizewidget.qss"));
     setFixedSize(86, 18);
@@ -60,11 +82,13 @@ void FontSizeWidget::initWidget() {
     });
 }
 
-void FontSizeWidget::setFontSize(int fontSize) {
+void FontSizeWidget::setFontSize(int fontSize)
+{
     m_fontSize = fontSize;
 }
 
-void FontSizeWidget::adjustFontSize(bool add) {
+void FontSizeWidget::adjustFontSize(bool add)
+{
     if (add) {
         m_fontSize = m_fontSize + 1;
         m_fontSize = std::min(m_fontSize, 72);
@@ -81,6 +105,6 @@ void FontSizeWidget::adjustFontSize(bool add) {
     });
 }
 
-FontSizeWidget::~FontSizeWidget() {
-
+FontSizeWidget::~FontSizeWidget()
+{
 }

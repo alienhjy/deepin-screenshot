@@ -1,4 +1,23 @@
-﻿#include "toolbar.h"
+/*
+ * Copyright (C) 2017 ~ 2017 Deepin Technology Co., Ltd.
+ *
+ * Maintainer: Peng Hui<penghui@deepin.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "toolbar.h"
 #include "utils/baseutils.h"
 
 #include <QPainter>
@@ -16,6 +35,7 @@ namespace {
 
     const QSize TOOLBAR_WIDGET_SIZE = QSize(276, 28);
     const int BUTTON_SPACING = 3;
+    const int BTN_RADIUS = 3;
 }
 
 ToolBarWidget::ToolBarWidget(QWidget *parent)
@@ -29,6 +49,7 @@ ToolBarWidget::ToolBarWidget(QWidget *parent)
     setMaskColor(QColor(255, 255, 255, 204));
     setFixedSize(TOOLBAR_WIDGET_SIZE);
 
+    qDebug() << "~~~~~~" << this->size();
     m_hSeperatorLine = new QLabel(this);
     m_hSeperatorLine->setObjectName("HorSeperatorLine");
     m_hSeperatorLine->setFixedHeight(1);
@@ -69,7 +90,7 @@ void ToolBarWidget::paintEvent(QPaintEvent *e) {
     QPainter painter(this);
     painter.setPen(QColor(255, 255, 255, 76.5));
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.drawLine(QPointF(0, 0), QPointF(this->width() - 1, 0));
+    painter.drawLine(QPointF(BTN_RADIUS, 0), QPointF(this->width() - 1, 0));
 }
 
 bool ToolBarWidget::isButtonChecked() {
@@ -87,7 +108,7 @@ void ToolBarWidget::setExpand(bool expand, QString shapeType) {
     if (expand) {
         m_expanded = true;
         setFixedSize(TOOLBAR_WIDGET_SIZE.width(),
-                              TOOLBAR_WIDGET_SIZE.height()*2+1);
+                                 TOOLBAR_WIDGET_SIZE.height()*2+1);
         m_hSeperatorLine->show();
         m_subToolbar->show();
     }
@@ -128,7 +149,6 @@ ToolBar::ToolBar(QWidget *parent)
 
 void ToolBar::setExpand(bool expand, QString shapeType) {
     emit buttonChecked(shapeType);
-
     if (expand) {
         m_expanded = true;
         setFixedSize(TOOLBAR_WIDTH,

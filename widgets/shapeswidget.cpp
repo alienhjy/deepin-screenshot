@@ -1,4 +1,27 @@
-﻿#include "shapeswidget.h"
+/*
+ * Copyright (C) 2017 ~ 2017 Deepin Technology Co., Ltd.
+ *
+ * Maintainer: Peng Hui<penghui@deepin.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "shapeswidget.h"
+
+#include <QApplication>
+#include <QPainter>
+#include <QDebug>
 
 #include "utils/calculaterect.h"
 #include "utils/configsettings.h"
@@ -6,14 +29,12 @@
 
 #include <cmath>
 
-#include <QApplication>
-#include <QPainter>
-#include <QDebug>
-
 #define LINEWIDTH(index) (index*2+3)
 
 const int DRAG_BOUND_RADIUS = 8;
 const int SPACING = 12;
+const qreal RESIZEPOINT_WIDTH = 15;
+const QSize ROTATE_ICON_SIZE = QSize(24, 24);
 
 ShapesWidget::ShapesWidget(QWidget *parent)
     : QFrame(parent),
@@ -125,6 +146,10 @@ void ShapesWidget::setAllTextEditReadOnly() {
     while (i != m_editMap.end()) {
         i.value()->setReadOnly(true);
         i.value()->releaseKeyboard();
+
+        QTextCursor textCursor =  i.value()->textCursor();
+         textCursor.clearSelection();
+         i.value()->setTextCursor(textCursor);
         ++i;
     }
 
@@ -1008,7 +1033,6 @@ void ShapesWidget::mouseReleaseEvent(QMouseEvent *e) {
     m_isMoving = false;
 
     qDebug() << m_isRecording << m_isSelected << m_pos2;
-
     if (m_isRecording && !m_isSelected && m_pos2 != QPointF(0, 0)) {
         if (m_currentType == "arrow") {
             if (m_currentShape.points.length() == 2) {
@@ -1225,10 +1249,10 @@ void ShapesWidget::updateTextRect(TextEdit* edit, QRectF newRect) {
 
 void ShapesWidget::paintImgPoint(QPainter &painter, QPointF pos, QPixmap img, bool isResize) {
         if (isResize) {
-                painter.drawPixmap(QPoint(pos.x() - DRAG_BOUND_RADIUS,
+                painter.drawPixmap(QPointF(pos.x() - DRAG_BOUND_RADIUS,
                                   pos.y() - DRAG_BOUND_RADIUS), img);
         } else {
-            painter.drawPixmap(QPoint(pos.x() - 12,
+            painter.drawPixmap(QPointF(pos.x() - 12,
                               pos.y() - 12), img);
         }
 }
@@ -1465,7 +1489,12 @@ void ShapesWidget::paintEvent(QPaintEvent *) {
         qDebug() << "hoveredShape type:" << m_hoveredShape.type;
     }
 
-    QPixmap resizePointImg(":/resources/images/size/resize_handle_big.png");
+    qreal ration =  this->devicePixelRatioF();
+    QIcon icon(":/resources/images/size/resize_handle_big.svg");
+    QPixmap resizePointImg = icon.pixmap(QSize(RESIZEPOINT_WIDTH,
+                                                                                RESIZEPOINT_WIDTH));
+    resizePointImg.setDevicePixelRatio(ration);
+
     if (m_selectedShape.type == "arrow" && m_selectedShape.points.length() == 2) {
         paintImgPoint(painter, m_selectedShape.points[0], resizePointImg);
         paintImgPoint(painter, m_selectedShape.points[1], resizePointImg);
@@ -1491,7 +1520,9 @@ void ShapesWidget::paintEvent(QPaintEvent *) {
                 paintRect(painter,  m_selectedShape.mainPoints, -1);
             }
 
-            QPixmap rotatePointImg(":/resources/images/size/rotate.png");
+            QPixmap rotatePointImg;
+            rotatePointImg = QIcon(":/resources/images/size/rotate.svg").pixmap(ROTATE_ICON_SIZE);
+            rotatePointImg.setDevicePixelRatio(this->devicePixelRatioF());
             paintImgPoint(painter, rotatePoint, rotatePointImg, false);
 
             for ( int i = 0; i < m_selectedShape.mainPoints.length(); i ++) {

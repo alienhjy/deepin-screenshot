@@ -1,3 +1,22 @@
+/*
+ * Copyright (C) 2017 ~ 2017 Deepin Technology Co., Ltd.
+ *
+ * Maintainer: Peng Hui<penghui@deepin.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "screenshot.h"
 
 #include <QApplication>
@@ -6,7 +25,10 @@
 #include <QWindow>
 
 #include "dbusinterface/dbusnotify.h"
-#include "utils/screenutils.h"
+
+#include <dscreenwindowsutil.h>
+
+DWM_USE_NAMESPACE
 
 Screenshot::Screenshot(QWidget *parent)
     : QMainWindow(parent)
@@ -14,13 +36,13 @@ Screenshot::Screenshot(QWidget *parent)
 }
 
 void Screenshot::initUI() {
-    setWindowFlags(Qt::X11BypassWindowManagerHint | Qt::WindowStaysOnTopHint |
+    setWindowFlags(Qt::X11BypassWindowManagerHint | Qt::WindowStaysOnTopHint|
                    Qt::FramelessWindowHint);
     setAttribute(Qt::WA_TranslucentBackground);
 
     QPoint curPos = this->cursor().pos();
-    ScreenUtils::instance(curPos);
-    QRect bgRect = ScreenUtils::instance(curPos)->backgroundRect();
+    DScreenWindowsUtil* swUtil = DScreenWindowsUtil::instance(curPos);
+    QRect bgRect = swUtil->backgroundRect();
 
      this->move(bgRect.x(), bgRect.y());
      this->setFixedSize(bgRect.size());
@@ -32,7 +54,7 @@ void Screenshot::initUI() {
     this->installEventFilter(this);
 
     connect(m_window, &MainWindow::releaseEvent, this, [=]{
-        qDebug() << "relase event !!!";
+        qDebug() << "release event !!!";
         m_keyboardReleased = true;
         m_keyboardGrabbed =  this->windowHandle()->setKeyboardGrabEnabled(false);
         qDebug() << "keyboardGrabbed:" << m_keyboardGrabbed;
@@ -51,9 +73,9 @@ void Screenshot::startScreenshot()
     m_window->startScreenshot();
 }
 
-void Screenshot::delayScreenshot(int num)
+void Screenshot::delayScreenshot(double num)
 {
-    QString summary = QString(tr("Deepin Screenshot will start after %1 second").arg(num));
+    QString summary = QString(tr("Deepin Screenshot will start after %1 seconds").arg(num));
     QStringList actions = QStringList();
     QVariantMap hints;
     DBusNotify* notifyDBus = new DBusNotify(this);
@@ -64,7 +86,7 @@ void Screenshot::delayScreenshot(int num)
 
     QTimer* timer = new QTimer;
     timer->setSingleShot(true);
-    timer->start(1000*num);
+    timer->start(int(1000*num));
     connect(timer, &QTimer::timeout, this, [=]{
         notifyDBus->CloseNotification(0);
         startScreenshot();

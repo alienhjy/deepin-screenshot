@@ -1,52 +1,46 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
-<TS version="2.1" language="sk">
+<?xml version="1.0" ?><!DOCTYPE TS><TS language="sk" version="2.1">
 <context>
     <name>MainWindow</name>
     <message>
-        <source>Select area</source>
-        <translation type="vanished">Vybrať rozsah</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="524"/>
+        <location filename="../mainwindow.cpp" line="618"/>
         <source>select-area</source>
-        <translation type="unfinished"></translation>
+        <translation>vybrany-rozsah</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="927"/>
-        <location filename="../mainwindow.cpp" line="929"/>
-        <location filename="../mainwindow.cpp" line="1174"/>
-        <location filename="../mainwindow.cpp" line="1177"/>
-        <location filename="../mainwindow.cpp" line="1190"/>
-        <location filename="../mainwindow.cpp" line="1193"/>
-        <location filename="../mainwindow.cpp" line="1227"/>
-        <location filename="../mainwindow.cpp" line="1230"/>
-        <location filename="../mainwindow.cpp" line="1262"/>
-        <location filename="../mainwindow.cpp" line="1265"/>
+        <location filename="../mainwindow.cpp" line="951"/>
+        <location filename="../mainwindow.cpp" line="953"/>
+        <location filename="../mainwindow.cpp" line="1209"/>
+        <location filename="../mainwindow.cpp" line="1212"/>
+        <location filename="../mainwindow.cpp" line="1225"/>
+        <location filename="../mainwindow.cpp" line="1228"/>
+        <location filename="../mainwindow.cpp" line="1268"/>
+        <location filename="../mainwindow.cpp" line="1271"/>
+        <location filename="../mainwindow.cpp" line="1303"/>
+        <location filename="../mainwindow.cpp" line="1306"/>
         <source>DeepinScreenshot</source>
-        <translation type="unfinished"></translation>
+        <translation>Deepin snímok obrazovky</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="945"/>
-        <location filename="../mainwindow.cpp" line="1279"/>
+        <location filename="../mainwindow.cpp" line="970"/>
+        <location filename="../mainwindow.cpp" line="1321"/>
         <source>View</source>
         <translation>Pohľad</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="959"/>
-        <location filename="../mainwindow.cpp" line="1299"/>
+        <location filename="../mainwindow.cpp" line="984"/>
+        <location filename="../mainwindow.cpp" line="1341"/>
         <source>Picture has been saved to %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Obrázok bol uložený do %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1197"/>
-        <source>PNG (*.png);;JPEG (*.jpg *.jpeg);; BMP (*.bmp);; PGM (*.pgm);;XBM (*.xbm);;XPM(*.xpm);;</source>
-        <translation type="unfinished"></translation>
+        <location filename="../mainwindow.cpp" line="1233"/>
+        <source>PNG (*.png);;JPEG (*.jpg *.jpeg);; BMP (*.bmp);; PGM (*.pgm);;XBM (*.xbm);;XPM(*.xpm)</source>
+        <translation>PNG (*.png);;JPEG (*.jpg *.jpeg);; BMP (*.bmp);; PGM (*.pgm);;XBM (*.xbm);;XPM(*.xpm)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1297"/>
+        <location filename="../mainwindow.cpp" line="1339"/>
         <source>Picture has been saved to clipboard</source>
-        <translation type="unfinished"></translation>
+        <translation>Obrázok bol uložený do schránky</translation>
     </message>
 </context>
 <context>
@@ -79,7 +73,7 @@
     <message>
         <location filename="../controller/menucontroller.cpp" line="55"/>
         <source>Undo</source>
-        <translation type="unfinished"></translation>
+        <translation>Späť</translation>
     </message>
     <message>
         <location filename="../controller/menucontroller.cpp" line="71"/>
@@ -118,18 +112,11 @@
     </message>
 </context>
 <context>
-    <name>QObject</name>
-    <message>
-        <source>Deepin Screenshot</source>
-        <translation type="vanished">Deepin Snímka obrazovky</translation>
-    </message>
-</context>
-<context>
     <name>Screenshot</name>
     <message>
-        <location filename="../screenshot.cpp" line="60"/>
-        <source>Deepin Screenshot will start after %1 second</source>
-        <translation type="unfinished"></translation>
+        <location filename="../screenshot.cpp" line="59"/>
+        <source>Deepin Screenshot will start after %1 seconds</source>
+        <translation>Deepin Snímok obrazovky sa spustí za %1 sekúnd</translation>
     </message>
 </context>
 <context>
@@ -173,7 +160,7 @@
     <message>
         <location filename="../utils/shortcut.cpp" line="19"/>
         <source>Undo</source>
-        <translation type="unfinished"></translation>
+        <translation>Späť</translation>
     </message>
     <message>
         <location filename="../utils/shortcut.cpp" line="20"/>
@@ -183,7 +170,7 @@
     <message>
         <location filename="../utils/shortcut.cpp" line="23"/>
         <source>Copy to clipboard</source>
-        <translation type="unfinished">Kopírovať do schránky</translation>
+        <translation>Kopírovať do schránky</translation>
     </message>
     <message>
         <location filename="../utils/shortcut.cpp" line="26"/>
@@ -292,15 +279,6 @@
         <location filename="../widgets/subtoolbar.cpp" line="419"/>
         <source>High</source>
         <translation>Vysoká</translation>
-    </message>
-</context>
-<context>
-    <name>WindowManager</name>
-    <message>
-        <location filename="../windowmanager.cpp" line="152"/>
-        <location filename="../windowmanager.cpp" line="171"/>
-        <source>Desktop</source>
-        <translation>Pracovné prostredie</translation>
     </message>
 </context>
 </TS>

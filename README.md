@@ -7,7 +7,7 @@
 - qt5-qmake, qt5-default, qtbase5-dev, pkg-config, libqt5svg5-dev, libqt5x11extras5-dev, qttools5-dev-tools,
 - libxcb-util0-dev, libstartup-notification0-dev,
 - qtbase5-private-dev,qtmultimedia5-dev, x11proto-xext-dev, libmtdev-dev, libegl1-mesa-dev, x11proto-record-dev,libxtst-dev,
-- libudev-dev, libfontconfig1-dev, libfreetype6-dev, libglib2.0-dev, libxrender-dev, libdtkbase-dev, libdtkutil-dev, libdtkwidget-dev
+- libudev-dev, libfontconfig1-dev, libfreetype6-dev, libglib2.0-dev, libxrender-dev, libdtkwidget-dev
 
 - deepin-notifications (>2.3.8-1)
 
@@ -29,14 +29,14 @@ Any usage issues can ask for help via
 * [Gitter](https://gitter.im/orgs/linuxdeepin/rooms)
 * [IRC channel](https://webchat.freenode.net/?channels=deepin)
 * [Forum](https://bbs.deepin.org)
-* [WiKi](http://wiki.deepin.org/)
+* [WiKi](https://wiki.deepin.org/)
 
 ## Getting involved
 
 We encourage you to report issues and contribute changes
 
-* [Contribution guide for users](http://wiki.deepin.org/index.php?title=Contribution_Guidelines_for_Users)
-* [Contribution guide for developers](http://wiki.deepin.org/index.php?title=Contribution_Guidelines_for_Developers).
+* [Contribution guide for developers](https://github.com/linuxdeepin/developer-center/wiki/Contribution-Guidelines-for-Developers-en). (English)
+* [开发者代码贡献指南](https://github.com/linuxdeepin/developer-center/wiki/Contribution-Guidelines-for-Developers) (中文)
 
 ## License
 

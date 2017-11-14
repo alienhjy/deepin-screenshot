@@ -1,6 +1,25 @@
+/*
+ * Copyright (C) 2017 ~ 2017 Deepin Technology Co., Ltd.
+ *
+ * Maintainer: Peng Hui<penghui@deepin.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <DApplication>
 #include <DLog>
-#include <dutility.h>
+#include <DWidgetUtil>
 
 #include <QObject>
 #include <QTranslator>
@@ -26,10 +45,11 @@ int main(int argc, char *argv[])
      a.setApplicationVersion("4.0");
      a.setTheme("light");
      a.setQuitOnLastWindowClosed(false);
+     a.setAttribute(Qt::AA_UseHighDpiPixmaps);
 
-     using namespace Dtk::Util;
-     Dtk::Util::DLogManager::registerConsoleAppender();
-     Dtk::Util::DLogManager::registerFileAppender();
+     using namespace Dtk::Core;
+     Dtk::Core::DLogManager::registerConsoleAppender();
+     Dtk::Core::DLogManager::registerFileAppender();
 
      QCommandLineOption  delayOption(QStringList() << "d" << "delay",
                                                                              "Take a screenshot after NUM seconds.", "NUM");
@@ -43,7 +63,8 @@ int main(int argc, char *argv[])
                                                                               "Don't send notifications.");
      QCommandLineOption iconOption(QStringList() << "i" << "icon",
                                                                            "Indicate that this program's started by clicking.");
-
+    QCommandLineOption dbusOption(QStringList() << "u" << "dbus",
+                                                                            "Start  from dbus.");
      QCommandLineParser cmdParser;
      cmdParser.setApplicationDescription("deepin-screenshot");
      cmdParser.addHelpOption();
@@ -54,45 +75,48 @@ int main(int argc, char *argv[])
      cmdParser.addOption(savePathOption);
      cmdParser.addOption(prohibitNotifyOption);
      cmdParser.addOption(iconOption);
+     cmdParser.addOption(dbusOption);
      cmdParser.process(a);
 
      Screenshot w;
      w.hide();
 
-     //Register Screenshot's dbus service.
      DBusScreenshotService dbusService (&w);
      Q_UNUSED(dbusService);
+     //Register Screenshot's dbus service.
+     QDBusConnection conn = QDBusConnection::sessionBus();
+     if (!conn.registerService("com.deepin.Screenshot") ||
+             !conn.registerObject("/com/deepin/Screenshot", &w)) {
+         qDebug() << "deepin-screenshot is running!";
 
-    QDBusConnection conn = QDBusConnection::sessionBus();
-    if (!conn.registerService("com.deepin.DeepinScreenshot") ||
-            !conn.registerObject("/com/deepin/DeepinScreenshot", &w)) {
-        qDebug() << "deepin-screenshot is running!";
+         qApp->quit();
+         return 0;
+     }
 
-        qApp->quit();
-        return 0;
-    } else {
-        qDebug() << "deepin-screenshot first started!";
+     if (cmdParser.isSet(dbusOption))
+     {
+         qDebug() << "dbus register wating!";
+         return a.exec();
+     } else {
+         if (cmdParser.isSet(delayOption)) {
+             qDebug() << "cmd delay screenshot";
+             w.delayScreenshot(cmdParser.value(delayOption).toInt());
+         } else if (cmdParser.isSet(fullscreenOption)) {
+             w.fullscreenScreenshot();
+         } else if (cmdParser.isSet(topWindowOption)) {
+             w.topWindowScreenshot();
+         } else if (cmdParser.isSet(savePathOption)) {
+             qDebug() << "cmd savepath screenshot";
+             w.savePathScreenshot(cmdParser.value(savePathOption));
+         } else if (cmdParser.isSet(prohibitNotifyOption)) {
+             qDebug() << "screenshot no notify!";
+             w.noNotifyScreenshot();
+         } else if (cmdParser.isSet(iconOption)) {
+             w.delayScreenshot(0.2);
+         }  else {
+             w.startScreenshot();
+         }
+     }
 
-        if (cmdParser.isSet(delayOption)) {
-            qDebug() << "cmd delay screenshot";
-            w.delayScreenshot(cmdParser.value(delayOption).toInt());
-        } else if (cmdParser.isSet(fullscreenOption)) {
-            w.fullscreenScreenshot();
-        } else if (cmdParser.isSet(topWindowOption)) {
-            qDebug() << "cmd topWindow";
-            w.topWindowScreenshot();
-        } else if (cmdParser.isSet(savePathOption)) {
-            qDebug() << "cmd savepath screenshot";
-            w.savePathScreenshot(cmdParser.value(savePathOption));
-        } else if (cmdParser.isSet(prohibitNotifyOption)) {
-            qDebug() << "screenshot no notify!";
-            w.noNotifyScreenshot();
-        } else if (cmdParser.isSet(iconOption)) {
-            w.startScreenshot();
-        }  else {
-            w.startScreenshot();
-        }
-
-        return a.exec();
-    }
+     return a.exec();
 }
